@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #f6e7cf;
+  background: #160c08;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(184, 107, 61, 0.35), transparent 30rem),
+    radial-gradient(circle at 80% 10%, rgba(246, 231, 207, 0.12), transparent 20rem),
+    linear-gradient(135deg, #160c08 0%, #2a160d 45%, #110907 100%);
+}
+
+.glass-card {
+  border: 1px solid rgba(246, 231, 207, 0.16);
+  background: rgba(42, 22, 13, 0.62);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.coffee-gradient {
+  background: linear-gradient(135deg, #f6e7cf 0%, #d6b28c 45%, #b86b3d 100%);
+  -webkit-background-clip: text;
+  color: transparent;
+}
