@@ -10,6 +10,9 @@ Brewaura is a MERN stack moka pot coffee recipe app with an interactive Framer M
 - Vite React frontend with React Router and Axios
 - Coffee-themed responsive Tailwind UI
 - Step-controlled brewing simulator with autoplay, progress, steam, boiling water, coffee flow, and serve animations
+- Web Audio API stage cues with a gentle heating ambience for the simulator
+- SpeechSynthesis read-aloud support for recipe instructions and active animation stages
+- Animated barista illustration that guides users through recipe and simulation screens
 - Local browser favorites
 
 ## Getting Started

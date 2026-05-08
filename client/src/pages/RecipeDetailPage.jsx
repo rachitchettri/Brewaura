@@ -1,9 +1,11 @@
-import { Heart, Play, SlidersHorizontal } from 'lucide-react';
+import { Heart, Play, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import BaristaIllustration from '../components/BaristaIllustration';
 import LoadingState from '../components/LoadingState';
 import { fallbackRecipes } from '../services/fallbackRecipes';
 import { recipeService } from '../services/api';
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 
 export default function RecipeDetailPage() {
   const { id } = useParams();
@@ -12,6 +14,7 @@ export default function RecipeDetailPage() {
   const [waterAmount, setWaterAmount] = useState(0);
   const [cups, setCups] = useState(1);
   const [favoriteIds, setFavoriteIds] = useState(() => JSON.parse(localStorage.getItem('brewaura:favorites') || '[]'));
+  const { supported: speechSupported, speaking, speak, cancel } = useSpeechSynthesis();
 
   useEffect(() => {
     const loadRecipe = async () => {
@@ -38,11 +41,26 @@ export default function RecipeDetailPage() {
     return Math.max(1, Math.round((recipe.coffee_grams / recipe.water_ml) * waterAmount));
   }, [recipe, waterAmount]);
 
+  const instructionText = useMemo(() => {
+    if (!recipe) return '';
+    const steps = recipe.steps.map((step, index) => `Step ${index + 1}: ${step}`).join(' ');
+    return `${recipe.name}. ${recipe.description} Ingredients: ${waterAmount} milliliters of water, ${coffeeGrams} grams of coffee, ${recipe.grind_size} grind, ${recipe.heat_level} heat. ${steps}`;
+  }, [coffeeGrams, recipe, waterAmount]);
+
   const isFavorite = favoriteIds.includes(id);
   const toggleFavorite = () => {
     const nextFavorites = isFavorite ? favoriteIds.filter((item) => item !== id) : [...favoriteIds, id];
     setFavoriteIds(nextFavorites);
     localStorage.setItem('brewaura:favorites', JSON.stringify(nextFavorites));
+  };
+
+  const toggleReading = () => {
+    if (speaking) {
+      cancel();
+      return;
+    }
+
+    speak(instructionText);
   };
 
   if (loading) return <LoadingState label="Loading recipe details..." />;
@@ -68,6 +86,13 @@ export default function RecipeDetailPage() {
           <input className="mt-3 w-full accent-copper" type="range" min="1" max="6" step="1" value={cups} onChange={(event) => setCups(Number(event.target.value))} />
         </div>
         <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            onClick={toggleReading}
+            disabled={!speechSupported}
+            className="inline-flex items-center gap-2 rounded-full bg-crema/10 px-5 py-3 font-bold text-crema transition hover:bg-crema/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {speaking ? <VolumeX size={18} /> : <Volume2 size={18} />} {speaking ? 'Stop Reading' : 'Read Recipe'}
+          </button>
           <Link to={`/recipes/${id}/animation`} className="inline-flex items-center gap-2 rounded-full bg-copper px-5 py-3 font-bold text-white transition hover:bg-latte hover:text-espresso">
             <Play size={18} /> Start Animation
           </Link>
@@ -77,7 +102,12 @@ export default function RecipeDetailPage() {
         </div>
       </aside>
 
-      <section className="glass-card rounded-[2rem] p-6">
+      <section className="grid gap-6">
+        <BaristaIllustration
+          mood={speaking ? 'talk' : 'guide'}
+          caption={speaking ? 'I am narrating the full recipe and instructions.' : 'Use Read Recipe for spoken guidance, then start the animated brew when you are ready.'}
+        />
+        <div className="glass-card rounded-[2rem] p-6">
         <h2 className="text-3xl font-black">Step-by-step brew guide</h2>
         <ol className="mt-6 space-y-4">
           {recipe.steps.map((step, index) => (
@@ -87,6 +117,7 @@ export default function RecipeDetailPage() {
             </li>
           ))}
         </ol>
+        </div>
       </section>
     </div>
   );

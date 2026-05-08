@@ -1,6 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
+import { Pause, Play, RotateCcw, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import BaristaIllustration from '../components/BaristaIllustration';
+import { useBrewingAudio } from '../hooks/useBrewingAudio';
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 import { stageMeta } from './stageMeta';
 
 const defaultStages = ['fill_water', 'add_coffee', 'assemble', 'heat', 'brew', 'serve'];
@@ -109,8 +112,13 @@ export default function BrewingSimulator({ recipe }) {
   const stages = useMemo(() => recipe?.animationStages?.length ? recipe.animationStages : defaultStages, [recipe]);
   const [index, setIndex] = useState(0);
   const [autoplay, setAutoplay] = useState(false);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
+  const { supported: speechSupported, speaking, speak, cancel } = useSpeechSynthesis();
+  const { audioEnabled, audioSupported, setAudioEnabled, playStageCue, setAmbience } = useBrewingAudio();
   const stage = stages[index];
+  const currentStep = recipe?.steps?.[index] || stageMeta[stage]?.description || '';
   const progress = ((index + 1) / stages.length) * 100;
+  const narrationText = `${stageMeta[stage]?.title || 'Brewing step'}. ${stageMeta[stage]?.description || ''} Instruction: ${currentStep}`;
 
   useEffect(() => {
     if (!autoplay) return undefined;
@@ -126,17 +134,49 @@ export default function BrewingSimulator({ recipe }) {
     return () => clearInterval(timer);
   }, [autoplay, stages.length]);
 
+  useEffect(() => {
+    playStageCue(stage);
+    setAmbience(['heat', 'brew'].includes(stage));
+
+    if (narrationEnabled) {
+      speak(narrationText);
+    }
+
+    return () => setAmbience(false);
+  }, [narrationEnabled, narrationText, playStageCue, setAmbience, speak, stage]);
+
   const goTo = (nextIndex) => setIndex(Math.max(0, Math.min(stages.length - 1, nextIndex)));
+
+  const toggleNarration = () => {
+    if (narrationEnabled) {
+      cancel();
+      setNarrationEnabled(false);
+      return;
+    }
+
+    setNarrationEnabled(true);
+    speak(narrationText);
+  };
 
   return (
     <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-      <MokaVisual stage={stage} />
+      <div className="grid gap-5">
+        <MokaVisual stage={stage} />
+        <BaristaIllustration
+          mood={stage === 'serve' ? 'serve' : speaking ? 'talk' : 'guide'}
+          caption={speaking ? 'Reading this instruction out loud so you can keep your hands on the brew.' : currentStep}
+        />
+      </div>
       <div className="glass-card rounded-[2rem] p-6">
         <p className="text-sm uppercase tracking-[0.35em] text-latte/70">Brewing simulator</p>
         <AnimatePresence mode="wait">
           <motion.div key={stage} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}>
             <h2 className="mt-3 text-4xl font-black coffee-gradient">{stageMeta[stage]?.title}</h2>
             <p className="mt-4 text-lg leading-8 text-crema/75">{stageMeta[stage]?.description}</p>
+            <div className="mt-5 rounded-3xl bg-crema/10 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-latte/70">Instruction read-aloud text</p>
+              <p className="mt-2 leading-7 text-crema/80">{currentStep}</p>
+            </div>
           </motion.div>
         </AnimatePresence>
 
@@ -146,12 +186,26 @@ export default function BrewingSimulator({ recipe }) {
         <p className="mt-2 text-sm text-crema/60">Stage {index + 1} of {stages.length}</p>
 
         <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            onClick={() => setAudioEnabled(!audioEnabled)}
+            disabled={!audioSupported}
+            className="inline-flex items-center gap-2 rounded-full bg-crema/10 px-5 py-3 font-bold transition hover:bg-crema/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {audioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />} {audioEnabled ? 'Sound On' : 'Sound Off'}
+          </button>
+          <button
+            onClick={toggleNarration}
+            disabled={!speechSupported}
+            className="inline-flex items-center gap-2 rounded-full bg-crema/10 px-5 py-3 font-bold transition hover:bg-crema/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Volume2 size={18} /> {narrationEnabled ? 'Stop Reading' : 'Read Aloud'}
+          </button>
           <button onClick={() => goTo(index - 1)} className="rounded-full bg-crema/10 p-3 transition hover:bg-crema/20" aria-label="Previous stage"><SkipBack /></button>
           <button onClick={() => setAutoplay((value) => !value)} className="inline-flex items-center gap-2 rounded-full bg-copper px-5 py-3 font-bold text-white transition hover:bg-latte hover:text-espresso">
             {autoplay ? <Pause size={18} /> : <Play size={18} />} {autoplay ? 'Pause' : 'Autoplay'}
           </button>
           <button onClick={() => goTo(index + 1)} className="rounded-full bg-crema/10 p-3 transition hover:bg-crema/20" aria-label="Next stage"><SkipForward /></button>
-          <button onClick={() => { setIndex(0); setAutoplay(false); }} className="rounded-full bg-crema/10 p-3 transition hover:bg-crema/20" aria-label="Reset"><RotateCcw /></button>
+          <button onClick={() => { setIndex(0); setAutoplay(false); cancel(); }} className="rounded-full bg-crema/10 p-3 transition hover:bg-crema/20" aria-label="Reset"><RotateCcw /></button>
         </div>
 
         <div className="mt-8 grid gap-3">
